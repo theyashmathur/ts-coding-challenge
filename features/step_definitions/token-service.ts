@@ -96,17 +96,11 @@ Then(/^The token has (\d+) decimals$/, async function (decimals: string) {
 
 Then(/^The token is owned by the account$/, async function (owner: any) {
   const tokenId = TokenId.fromString(tokenID);
-  const token = await new TokenInfoQuery()
-    .setTokenId(tokenId)
-    .execute(client);
-  console.log(owner, "OWNER")
-
-  // const tokenOwner = token.adminKey;
-  // console.log("Ownerkey: ", tokenOwner);
-  // assert.equal(tokenOwner, owner);
+  const tokenInfo = await new TokenInfoQuery().setTokenId(tokenId).execute(client);
+  assert.ok(tokenInfo.adminKey !== null);
 });
 
-Then(/^An attempt to mint (\d+) additional tokens succeeds$/, async function (amount: any) {
+Then(/^An attempt to mint (\d+) additional tokens succeeds$/, async function (amount: number) {
   const tokenId = TokenId.fromString(tokenID);
   const transaction = new TokenMintTransaction()
     .setTokenId(tokenId)
@@ -120,12 +114,14 @@ Then(/^An attempt to mint (\d+) additional tokens succeeds$/, async function (am
   const receipt = await tx.getReceipt(client);
   
   const totalSupply = (await tokenInfo.execute(client)).totalSupply;
-  const supplyToDecimal = totalSupply / 100;    // 2 decimal places
+  const _totalSupply = totalSupply.getLowBits();
+  console.log("TOTAL SUPPLY", _totalSupply);
+  const supplyToDecimal = _totalSupply / 100;    // 2 decimal places
 
   assert.ok(supplyToDecimal.toString() == amount.toString());
 });
 
-When(/^I create a fixed supply token named Test Token \(HTT\) with (\d+) tokens$/, async function (amount: any) {
+When(/^I create a fixed supply token named Test Token \(HTT\) with (\d+) tokens$/, async function (amount: number) {
   const account = accounts[3];
   const adminId = AccountId.fromString(account.id);
   const adminKey = PrivateKey.fromStringED25519(account.privateKey);
@@ -145,7 +141,7 @@ When(/^I create a fixed supply token named Test Token \(HTT\) with (\d+) tokens$
   //Request the receipt of the transaction
   const getReceipt = await tx.getReceipt(client);
 
-  assert.equal(amount.toString(), 100000/2)
+  assert.equal(amount, 1000)
 });
 
 Then(/^The total supply of the token is (\d+)$/, async function (totalSupply: any) {
@@ -153,9 +149,10 @@ Then(/^The total supply of the token is (\d+)$/, async function (totalSupply: an
   const token = new TokenInfoQuery()
     .setTokenId(tokenId);
   
-  const supply = ((await token.execute(client)).totalSupply) / 100;
-
-  assert.equal(supply, totalSupply);
+  const supply = (await token.execute(client)).totalSupply;
+  const _supply = supply.getLowBits() / 100;
+  console.log("Supply", supply);
+  assert.equal(_supply, totalSupply);
 });
 
 Then(/^An attempt to mint tokens fails$/, async function () {
@@ -195,7 +192,8 @@ Given(/^A token named Test Token \(HTT\) with (\d+) tokens$/, async function (ex
     .setTokenId(tokenId);
   
   const supply = (await tokenInfo.execute(client)).totalSupply;
-  const supplyToDecimal = supply / 100;
+  const _totalSupply = supply.getLowBits();
+  const supplyToDecimal = _totalSupply / 100;
 
   assert.equal(supplyToDecimal, expectedSupply);
 });
@@ -206,9 +204,9 @@ Given(/^The first account holds (\d+) HTT tokens$/, async function (amount: numb
     .execute(client);
   
   const token = (await query).tokenRelationships.get(tokenID);
-  const balance = token?.balance.toBigNumber().toNumber();
+  const balance = token?.balance.getLowBits();
 
-  assert.ok(balance > amount);
+  assert.ok(balance !== undefined && balance > amount);
 });
 
 Given(/^The second account holds (\d+) HTT tokens$/, async function (expectedBalance: number) {
@@ -217,7 +215,8 @@ Given(/^The second account holds (\d+) HTT tokens$/, async function (expectedBal
     .execute(client);
   
   const token = (await query).tokenRelationships.get(tokenID);
-  const balance = token?.balance.toBigNumber().toNumber();
+  
+  const balance = token?.balance.getLowBits();
 
   assert.equal(balance, expectedBalance);
 });
@@ -243,7 +242,7 @@ Then(/^The second account holds (\d+) HTT tokens$/, async function (expectedBala
     .execute(client);
   
   const token = (await query).tokenRelationships.get(tokenID);
-  const balance = token?.balance.toBigNumber().toNumber();
+  const balance = token?.balance.getLowBits();
 
   assert.equal(balance, expectedBalance);
 });
@@ -254,9 +253,9 @@ Then(/^The first account holds (\d+) HTT tokens$/, async function (amount: numbe
     .execute(client);
   
   const token = (await query).tokenRelationships.get(tokenID);
-  const balance = token?.balance.toBigNumber().toNumber();
+  const balance = token?.balance.getLowBits();
 
-  assert.ok(balance > amount);
+  assert.ok(balance !== undefined && balance > amount);
 });
 
 When(
